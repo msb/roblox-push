@@ -1,0 +1,8 @@
+# `pip-compile` doesn't appear to recognize `-c`
+-c requirements.txt
+
+# Additional requirements which are only installed inside the Docker container
+
+# Web application requirements
+gunicorn
+uvicorn[standard]
