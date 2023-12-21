@@ -15,3 +15,7 @@ pip-compile requirements/requirements.in
    46  docker push europe-west2-docker.pkg.dev/roblox-push-first-408715/general/roblox-push:0.1
    need command to create cloud run service
 ```
+
+```
+s3cmd put * s3://msb140610.me.uk-root/resources/roblox/
+```
