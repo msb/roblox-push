@@ -19,3 +19,9 @@ pip-compile requirements/requirements.in
 ```
 s3cmd put * s3://msb140610.me.uk-root/resources/roblox/
 ```
+
+TODO
+----
+- Fix client flow
+- Complete config
+- https://medium.com/@a7ul/beginners-guide-to-web-push-notifications-using-service-workers-cb3474a17679
