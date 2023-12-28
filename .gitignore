@@ -1,2 +1,6 @@
 # ide
 *.code-workspace
+
+# secrets
+*.json
+*.txt

@@ -3,3 +3,4 @@
 fastapi
 httpx
 pywebpush
+firebase-admin

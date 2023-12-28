@@ -1,10 +1,10 @@
-import time
-from pywebpush import webpush, WebPushException
+import uuid, os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
-
-import src.app.roblox_client as roblox_client
+from pydantic import BaseModel
+import firebase_admin
+from firebase_admin import firestore, credentials
+from pywebpush import webpush, WebPushException
 
 app = FastAPI()
 
@@ -15,6 +15,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+VAPID_PRIVATE_KEY = os.environ['VAPID_PRIVATE_KEY']
+
+# Application Default credentials are automatically created.
+# cred = credentials.Certificate('roblox-push-first-408715-507045e2d647.json')
+# FIXME don't use SA
+firebase_admin.initialize_app()
+db = firestore.client()
 
 class SubscriptionKeys(BaseModel):
     p256dh: str
@@ -36,11 +44,10 @@ base_params = {'datastoreName': 'Notification'}
 @app.post("/subscribed")
 async def subscribed(subscription: Subscription):
 
-    async with roblox_client.ods_client(universe_id, 'NotificationIndex') as ods_client:
-        async with roblox_client.ds_client(universe_id, base_params) as ds_client:
-            id = int(time.time())
-            await ds_client.set_entry(id, subscription.model_dump())
-            await ods_client.create(str(id), id)
+    subs_ref = db.collection("subscriptions")
+
+    doc_ref = subs_ref.document(str(uuid.uuid4()))
+    doc_ref.set(subscription.model_dump())
 
     # FIXME return something else
     return subscription
@@ -48,29 +55,28 @@ async def subscribed(subscription: Subscription):
 @app.post("/notify")
 async def notify(notification: Notification):
 
-    async with roblox_client.ods_client(universe_id, 'NotificationIndex') as ods_client:
-        async with roblox_client.ds_client(universe_id, base_params) as ds_client:
-            content = await ods_client.list()
-            for entry in content['entries']:
-                # FIXME await all
-                subscription = await ds_client.get_entry(entry['value'])
-                try:
-                    response = webpush(
-                        subscription_info=subscription,
-                        data=notification.message,
-                        vapid_private_key="3PYUCgtztckmAgz8c1XYh6mZfA5vHaCZVfJQsNofHgg",
-                        vapid_claims={
-                            "sub": "mailto:mike.bamford@gmail.com",
-                        }
-                    )
-                    print(response)
-                except WebPushException as ex:
-                    print("I'm sorry, Dave, but I can't do that: {}", repr(ex))
-                    # Mozilla returns additional information in the body of the response.
-                    if ex.response and ex.response.json():
-                        extra = ex.response.json()
-                        print("Remote service replied with a {}:{}, {}",
-                            extra.code,
-                            extra.errno,
-                            extra.message
-                            )
+    subs_ref = db.collection("subscriptions")
+
+    subscriptions = subs_ref.stream()
+
+    for subscription in subscriptions:
+        try:
+            response = webpush(
+                subscription_info=subscription.to_dict(),
+                data=notification.message,
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims={
+                    "sub": "mailto:mike.bamford@gmail.com",
+                }
+            )
+            print(response)
+        except WebPushException as ex:
+            print("I'm sorry, Dave, but I can't do that: {}", repr(ex))
+            # Mozilla returns additional information in the body of the response.
+            if ex.response and ex.response.json():
+                extra = ex.response.json()
+                print("Remote service replied with a {}:{}, {}",
+                    extra.code,
+                    extra.errno,
+                    extra.message
+                )
