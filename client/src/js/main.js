@@ -1,9 +1,6 @@
 // Import our custom CSS
 import '../scss/styles.scss'
 
-// Import all of Bootstrap's JS
-import * as bootstrap from 'bootstrap'
-
 if (!('serviceWorker' in navigator)) {
   document.getElementById("no-sw").classList.remove("d-none");
 }
