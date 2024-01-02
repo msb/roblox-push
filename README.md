@@ -48,3 +48,4 @@ TODO
 - https://firebase.google.com/docs/firestore/quickstart#optional_prototype_and_test_with
 - https://medium.com/@a7ul/beginners-guide-to-web-push-notifications-using-service-workers-cb3474a17679
 - https://cloud.google.com/run/docs/deploying
+- https://www.robinwieruch.de/webpack-font/

@@ -1,5 +1,5 @@
 // Import our custom CSS
-import '../scss/styles.scss'
+import '../css/styles.css'
 
 if (!('serviceWorker' in navigator)) {
   document.getElementById("no-sw").classList.remove("d-none");
@@ -12,7 +12,7 @@ if (!('PushManager' in window)) {
 const allowNotificationsBtn = document.getElementById("allow-notifications")
 
 if (Notification.permission != "granted") {
-  allowNotificationsBtn.classList.remove("d-none");
+    allowNotificationsBtn.classList.remove("d-none");
 }
 
 allowNotificationsBtn.addEventListener("click", async () => {
