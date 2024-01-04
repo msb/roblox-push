@@ -5,6 +5,8 @@ Web Push Notifications For Roblox Events
 python -m pip install pip-tools
 
 pip-compile requirements/requirements.in
+
+uvicorn src.app.main:app --reload
 ```
 
 ```

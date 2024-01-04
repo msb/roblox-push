@@ -1,5 +1,5 @@
-import uuid, os
-from fastapi import FastAPI
+import os, time
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import firebase_admin
@@ -19,9 +19,9 @@ app.add_middleware(
 VAPID_PRIVATE_KEY = os.environ['VAPID_PRIVATE_KEY']
 
 # Application Default credentials are automatically created.
-# cred = credentials.Certificate('roblox-push-first-408715-507045e2d647.json')
+cred = credentials.Certificate('roblox-push-first-408715-507045e2d647.json')
 # FIXME don't use SA
-firebase_admin.initialize_app()
+firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 class SubscriptionKeys(BaseModel):
@@ -33,50 +33,82 @@ class Subscription(BaseModel):
     expirationTime: None = None
     keys: SubscriptionKeys
 
+class SubscriptionWrapper(BaseModel):
+    subscription: Subscription
+    # our expiration time
+    expirationTime: float
+
 class Notification(BaseModel):
     message: str
 
-# FIXME
-universe_id = '4480489854'
 
-base_params = {'datastoreName': 'Notification'}
-
-@app.post("/subscribed")
-async def subscribed(subscription: Subscription):
+@app.put("/subscriptions/{client_id}")
+async def subscribed(client_id: str, subscription: Subscription):
 
     subs_ref = db.collection("subscriptions")
 
-    doc_ref = subs_ref.document(str(uuid.uuid4()))
-    doc_ref.set(subscription.model_dump())
+    doc_ref = subs_ref.document(client_id)
+    if not doc_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    wrapper = SubscriptionWrapper(
+        subscription=subscription,
+        expirationTime=time.time() + (60 * 60 * 24)
+    )
 
-    # FIXME return something else
-    return subscription
+    doc_ref.set(wrapper.model_dump())
+
+
+@app.delete("/subscriptions/{client_id}")
+async def subscribed(client_id: str):
+
+    subs_ref = db.collection("subscriptions")
+
+    doc_ref = subs_ref.document(client_id)
+    if not doc_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    doc_ref.set({})
+
+
+@app.get("/subscriptions/{client_id}")
+async def subscribed(client_id: str):
+
+    subs_ref = db.collection("subscriptions")
+
+    subscription = subs_ref.document(client_id).get()
+    if not subscription.exists:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    return subscription.to_dict()
+
 
 @app.post("/notify")
 async def notify(notification: Notification):
 
     subs_ref = db.collection("subscriptions")
 
-    subscriptions = subs_ref.stream()
-
-    for subscription in subscriptions:
-        try:
-            response = webpush(
-                subscription_info=subscription.to_dict(),
-                data=notification.message,
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims={
-                    "sub": "mailto:mike.bamford@gmail.com",
-                }
-            )
-            print(response)
-        except WebPushException as ex:
-            print("I'm sorry, Dave, but I can't do that: {}", repr(ex))
-            # Mozilla returns additional information in the body of the response.
-            if ex.response and ex.response.json():
-                extra = ex.response.json()
-                print("Remote service replied with a {}:{}, {}",
-                    extra.code,
-                    extra.errno,
-                    extra.message
+    for document in subs_ref.stream():
+        wrapper = document.to_dict()
+        if wrapper and time.time() < wrapper['expirationTime']:
+            try:
+                response = webpush(
+                    subscription_info=wrapper["subscription"],
+                    data=notification.message,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims={
+                        "sub": "mailto:mike.bamford@gmail.com",
+                    }
                 )
+                print(response)
+            except WebPushException as ex:
+                print("Error: ", repr(ex))
+                if hasattr(ex, "response") and ex.response.status_code == 410:
+                    # the subscription has expired so delete
+                    document.reference.set({})
+
+
+# FIXME
+@app.post("/log")
+async def notify(notification: Notification):
+    print(notification.message)

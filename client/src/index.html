@@ -7,19 +7,28 @@
     </head>
     <body>
         <div class="container-sm">
-            <div class="alert alert-warning d-none" id="no-sw" role="alert">
+            <div class="alert alert-warning d-none" id="noSw" role="alert">
                 No Service Worker support!
             </div>
-            <div class="alert alert-warning d-none" id="no-push-api" role="alert">
+            <div class="alert alert-warning d-none" id="noPushApi" role="alert">
                 No Push API Support!
             </div>
             <h3>Roblox Push</h3>
-            <button type="button" class="btn btn-primary d-none" id="allow-notifications">
+            <button type="button" class="btn btn-primary d-none" id="allowNotifications">
                 Allow notifications
             </button>
-            <button type="button" class="btn btn-primary" id="unregister-sw">
+            <button type="button" class="btn btn-primary" id="unregisterSw">
                 Unregister service worker
             </button>
+            <form>
+                <div class="form-group">
+                    <label for="clientId">Client ID</label>
+                    <input type="email" class="form-control" id="clientId" aria-describedby="form-text" placeholder="Enter client id">
+                    <button type="button" class="btn btn-primary" id="subscribe" disabled>
+                        Subscribe
+                    </button>
+                </div>
+            </form>
         </div>
     </body>
 </html>

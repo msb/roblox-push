@@ -1,4 +1,6 @@
-import config from "./config.js";
+import isEmpty from 'lodash/isEmpty'
+
+import config from "./config.js"
 
 // urlB64ToUint8Array is a magic function that will encode the base64 public key
 // to Array buffer which is needed by the subscription option
@@ -13,44 +15,76 @@ const urlB64ToUint8Array = base64String => {
   return outputArray
 }
 
-const subscribed = async subscription => {
-  const response = await fetch(config.apiUrl + "/subscribed", {
-    method: 'post',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(subscription),
-  })
+const getSubscription = async (clientId) => {
+  const url = `${config.apiUrl}/subscriptions/${clientId}`
+  const response = await fetch(url, {method: 'GET'})
+  if (response.status == 404) {
+    throw new Error("clientId not known")
+  }
   return response.json()
 }
 
-// https://developer.chrome.com/docs/workbox/service-worker-lifecycle
+const putSubscription = async (clientId, subscription) => {
+  const url = `${config.apiUrl}/subscriptions/${clientId}`
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(subscription),
+  })
+  if (!response.ok) {
+    throw new Error("Error:" + await response.text())
+  }
+}
+
+const weblog = async (message) => {
+  const url = `${config.apiUrl}/log`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({message}),
+  })
+  if (!response.ok) {
+    throw new Error("Error:" + await response.text())
+  }
+}
+
 self.addEventListener('activate', async () => {
-  // This will be called only once when the service worker is activated.
-  try {
-    const options = {
-      applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
-      userVisibleOnly: true
+  weblog('Server Worker: activate')
+})
+
+self.addEventListener("message", async (event) => {
+  if (event.data && event.data.type === "subscribe") {
+    const result = await getSubscription(event.data.clientId)
+    if (isEmpty(result) || (result.timestamp < Date.now())) {
+      // This will be called only once when the service worker is activated.
+      try {
+        const options = {
+          applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
+          userVisibleOnly: true
+        }
+        const subscription = await self.registration.pushManager.subscribe(options)
+        await putSubscription(event.data.clientId, subscription)
+      } catch (err) {
+        console.log('Error', err)
+      }
     }
-    const subscription = await self.registration.pushManager.subscribe(options)
-    const response = await subscribed(subscription)
-    console.log(response)
-  } catch (err) {
-    console.log('Error', err)
   }
 })
 
 self.addEventListener("push", function(event) {
   if (event.data) {
-    console.log("Push event!! ", event.data.text());
-    showLocalNotification("Yolo", event.data.text(),  self.registration);
+    console.log("Push event: ", event.data.text())
+    self.registration.showNotification("FlipQuake", {
+      body: event.data.text()
+      // here you can add more properties like icon, image, vibrate, etc.
+    })
   } else {
-    console.log("Push event but no data");
+    console.log("Push event but no data")
   }
-});
+})
 
-const showLocalNotification = (title, body, swRegistration) => {
-  const options = {
-    body
-    // here you can add more properties like icon, image, vibrate, etc.
-  };
-  swRegistration.showNotification(title, options);
-};
+self.addEventListener('pushsubscriptionchange', async e => {  
+  const subscription = await registration.pushManager.subscribe(e.oldSubscription.options)
+  // FIXME
+  await putSubscription(event.data.clientId, subscription)
+});
