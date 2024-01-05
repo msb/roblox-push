@@ -17,18 +17,24 @@
             <button type="button" class="btn btn-primary d-none" id="allowNotifications">
                 Allow notifications
             </button>
-            <button type="button" class="btn btn-primary" id="unregisterSw">
+            <button type="button" class="btn btn-primary d-none" id="register">
+                Register service worker
+            </button>
+            <button type="button" class="btn btn-primary d-none" id="unregister">
                 Unregister service worker
             </button>
-            <form>
-                <div class="form-group">
-                    <label for="clientId">Client ID</label>
-                    <input type="email" class="form-control" id="clientId" aria-describedby="form-text" placeholder="Enter client id">
-                    <button type="button" class="btn btn-primary" id="subscribe" disabled>
-                        Subscribe
-                    </button>
-                </div>
-            </form>
+            <div class="form-group">
+                <label for="clientId">Client ID</label>
+                <input type="text" class="form-control" id="clientId" aria-describedby="form-text" placeholder="Enter client id">
+            </div>
+            <div class="d-none" id="subscription">
+                <button type="button" class="btn btn-primary d-none" id="subscribe">
+                    Subscribe
+                </button>
+                <button type="button" class="btn btn-primary d-none" id="unsubscribe">
+                    Unsubscribe
+                </button>
+            </div>
         </div>
     </body>
 </html>

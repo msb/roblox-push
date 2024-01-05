@@ -21,6 +21,15 @@ const putSubscription = async (clientId, subscription) => {
   }
 }
 
+const deleteSubscription = async (clientId) => {
+  const url = `${config.apiUrl}/subscriptions/${clientId}`
+  const response = await fetch(url, {method: 'DELETE'})
+  if (!response.ok) {
+    throw new Error((await response.json()).detail)
+  }
+  return response.json()
+}
+
 const postLog = async (clientId, message) => {
   const url = `${config.apiUrl}/log/${clientId}`
   const response = await fetch(url, {
@@ -33,4 +42,4 @@ const postLog = async (clientId, message) => {
   }
 }
 
-export {getSubscription, putSubscription, postLog}
+export {getSubscription, putSubscription, deleteSubscription, postLog}

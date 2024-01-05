@@ -1,11 +1,11 @@
 import isEmpty from 'lodash/isEmpty'
 
 import { getClientId } from './db';
-import { getSubscription, putSubscription, postLog } from './api.js';
+import { getSubscription, putSubscription, deleteSubscription, postLog } from './api.js';
 import config from "./config.js"
 
-// urlB64ToUint8Array is a magic function that will encode the base64 public key
-// to Array buffer which is needed by the subscription option
+// `urlB64ToUint8Array` is a magic function that will encode the base64 public key
+// to Array buffer which is needed by the subscription option.
 const urlB64ToUint8Array = base64String => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/')
@@ -18,15 +18,15 @@ const urlB64ToUint8Array = base64String => {
 }
 
 const log = async (message) => {
-  console.log(`log: ${message}`)
+  console.log(message)
   const clientId = await getClientId()
   if (clientId) {
-    postLog(message)
+    postLog(clientId, message)
   }
 }
 
 self.addEventListener('activate', async () => {
-  log('Server Worker: activate')
+  log('server Worker activated')
 })
 
 self.addEventListener("message", async (event) => {
@@ -34,33 +34,41 @@ self.addEventListener("message", async (event) => {
     const clientId = await getClientId()
     if (clientId) {
       const result = await getSubscription(clientId)
-      // FIXME
-      if (isEmpty(result)) {
-        // This will be called only once when the service worker is activated.
-        try {
-          const options = {
-            applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
-            userVisibleOnly: true
-          }
-          const subscription = await self.registration.pushManager.subscribe(options)
-          await putSubscription(clientId, subscription)
-        } catch (err) {
-          console.log('Error', err)
-        }
+      if (!isEmpty(result)) {
+        log('there is already a subscription')
       }
+      const options = {
+        applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
+        userVisibleOnly: true
+      }
+      const subscription = await self.registration.pushManager.subscribe(options)
+      await putSubscription(clientId, subscription)
+    }
+  }
+  if (event.data && event.data.type === "unsubscribe") {
+    const clientId = await getClientId()
+    if (clientId) {
+      const result = await getSubscription(clientId)
+      if (isEmpty(result)) {
+        log('there is no subscription')
+      }
+      const subscription = await self.registration.pushManager.getSubscription()
+      await subscription.unsubscribe()
+      await deleteSubscription(clientId)
     }
   }
 })
 
 self.addEventListener("push", function(event) {
+  let message = "No data"
   if (event.data) {
-    console.log("Push event: ", event.data.text())
-    self.registration.showNotification("FlipQuake", {
-      body: event.data.text()
-    })
-  } else {
-    console.log("Push event but no data")
+    message = event.data.text()
   }
+  
+  console.log("Push event", message)
+  self.registration.showNotification("FlipQuake", {
+    body: message
+  })
 })
 
 self.addEventListener('pushsubscriptionchange', async e => {  
@@ -70,13 +78,3 @@ self.addEventListener('pushsubscriptionchange', async e => {
     await putSubscription(clientId, subscription)
   }
 });
-
-// // From service-worker.js:
-// const channel = new BroadcastChannel('sw-messages');
-// channel.postMessage({title: 'Hello from SW'});
-
-// // From your client pages:
-// const channel = new BroadcastChannel('sw-messages');
-// channel.addEventListener('message', event => {
-//     console.log('Received', event.data);
-// });
