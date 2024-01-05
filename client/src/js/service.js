@@ -1,5 +1,7 @@
 import isEmpty from 'lodash/isEmpty'
 
+import { getClientId } from './db';
+import { getSubscription, putSubscription, postLog } from './api.js';
 import config from "./config.js"
 
 // urlB64ToUint8Array is a magic function that will encode the base64 public key
@@ -15,57 +17,36 @@ const urlB64ToUint8Array = base64String => {
   return outputArray
 }
 
-const getSubscription = async (clientId) => {
-  const url = `${config.apiUrl}/subscriptions/${clientId}`
-  const response = await fetch(url, {method: 'GET'})
-  if (response.status == 404) {
-    throw new Error("clientId not known")
-  }
-  return response.json()
-}
-
-const putSubscription = async (clientId, subscription) => {
-  const url = `${config.apiUrl}/subscriptions/${clientId}`
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(subscription),
-  })
-  if (!response.ok) {
-    throw new Error("Error:" + await response.text())
-  }
-}
-
-const weblog = async (message) => {
-  const url = `${config.apiUrl}/log`
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({message}),
-  })
-  if (!response.ok) {
-    throw new Error("Error:" + await response.text())
+const log = async (message) => {
+  console.log(`log: ${message}`)
+  const clientId = await getClientId()
+  if (clientId) {
+    postLog(message)
   }
 }
 
 self.addEventListener('activate', async () => {
-  weblog('Server Worker: activate')
+  log('Server Worker: activate')
 })
 
 self.addEventListener("message", async (event) => {
   if (event.data && event.data.type === "subscribe") {
-    const result = await getSubscription(event.data.clientId)
-    if (isEmpty(result) || (result.timestamp < Date.now())) {
-      // This will be called only once when the service worker is activated.
-      try {
-        const options = {
-          applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
-          userVisibleOnly: true
+    const clientId = await getClientId()
+    if (clientId) {
+      const result = await getSubscription(clientId)
+      // FIXME
+      if (isEmpty(result)) {
+        // This will be called only once when the service worker is activated.
+        try {
+          const options = {
+            applicationServerKey: urlB64ToUint8Array(config.vapidKeyPublic),
+            userVisibleOnly: true
+          }
+          const subscription = await self.registration.pushManager.subscribe(options)
+          await putSubscription(clientId, subscription)
+        } catch (err) {
+          console.log('Error', err)
         }
-        const subscription = await self.registration.pushManager.subscribe(options)
-        await putSubscription(event.data.clientId, subscription)
-      } catch (err) {
-        console.log('Error', err)
       }
     }
   }
@@ -76,7 +57,6 @@ self.addEventListener("push", function(event) {
     console.log("Push event: ", event.data.text())
     self.registration.showNotification("FlipQuake", {
       body: event.data.text()
-      // here you can add more properties like icon, image, vibrate, etc.
     })
   } else {
     console.log("Push event but no data")
@@ -84,7 +64,19 @@ self.addEventListener("push", function(event) {
 })
 
 self.addEventListener('pushsubscriptionchange', async e => {  
-  const subscription = await registration.pushManager.subscribe(e.oldSubscription.options)
-  // FIXME
-  await putSubscription(event.data.clientId, subscription)
+  const clientId = await getClientId()
+  if (clientId) {
+    const subscription = await registration.pushManager.subscribe(e.oldSubscription.options)
+    await putSubscription(clientId, subscription)
+  }
 });
+
+// // From service-worker.js:
+// const channel = new BroadcastChannel('sw-messages');
+// channel.postMessage({title: 'Hello from SW'});
+
+// // From your client pages:
+// const channel = new BroadcastChannel('sw-messages');
+// channel.addEventListener('message', event => {
+//     console.log('Received', event.data);
+// });

@@ -1,5 +1,6 @@
 import os, time
-from fastapi import FastAPI, HTTPException
+from typing import Annotated, Any
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import firebase_admin
@@ -42,15 +43,25 @@ class Notification(BaseModel):
     message: str
 
 
-@app.put("/subscriptions/{client_id}")
-async def subscribed(client_id: str, subscription: Subscription):
-
+async def get_doc_ref(client_id: str):
     subs_ref = db.collection("subscriptions")
 
     doc_ref = subs_ref.document(client_id)
     if not doc_ref.get().exists:
-        raise HTTPException(status_code=404, detail="Subscription not found")
+        raise HTTPException(status_code=404, detail="client id not known")
     
+    return doc_ref
+
+
+@app.get("/subscriptions/{client_id}")
+async def subscribed(doc_ref: Annotated[Any, Depends(get_doc_ref)]):
+
+    return doc_ref.get().to_dict()
+
+
+@app.put("/subscriptions/{client_id}")
+async def subscribed(doc_ref: Annotated[Any, Depends(get_doc_ref)], subscription: Subscription):
+
     wrapper = SubscriptionWrapper(
         subscription=subscription,
         expirationTime=time.time() + (60 * 60 * 24)
@@ -60,29 +71,17 @@ async def subscribed(client_id: str, subscription: Subscription):
 
 
 @app.delete("/subscriptions/{client_id}")
-async def subscribed(client_id: str):
-
-    subs_ref = db.collection("subscriptions")
-
-    doc_ref = subs_ref.document(client_id)
-    if not doc_ref.get().exists:
-        raise HTTPException(status_code=404, detail="Subscription not found")
+async def subscribed(doc_ref: Annotated[Any, Depends(get_doc_ref)]):
 
     doc_ref.set({})
 
 
-@app.get("/subscriptions/{client_id}")
-async def subscribed(client_id: str):
-
-    subs_ref = db.collection("subscriptions")
-
-    subscription = subs_ref.document(client_id).get()
-    if not subscription.exists:
-        raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    return subscription.to_dict()
+@app.post("/log/{client_id}")
+async def notify(doc_ref: Annotated[Any, Depends(get_doc_ref)], notification: Notification):
+    print(f'{doc_ref.id}: {notification.message}')
 
 
+# FIXME authentication
 @app.post("/notify")
 async def notify(notification: Notification):
 
@@ -106,9 +105,3 @@ async def notify(notification: Notification):
                 if hasattr(ex, "response") and ex.response.status_code == 410:
                     # the subscription has expired so delete
                     document.reference.set({})
-
-
-# FIXME
-@app.post("/log")
-async def notify(notification: Notification):
-    print(notification.message)

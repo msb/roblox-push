@@ -1,7 +1,12 @@
+import { setClientId, getClientId } from './db';
+
 // Import our custom CSS
 import '../css/styles.css'
 
+
 if (!('serviceWorker' in navigator)) {
+  // No Service Worker support!
+  // No Push API Support!
   document.getElementById("noSw").classList.remove("d-none");
 }
 
@@ -39,24 +44,13 @@ if ("serviceWorker" in navigator) {
 
   window.addEventListener('load', async () => {
 
-    navigator.serviceWorker.ready.then(registration => {  
-      return registration.pushManager.getSubscription();  
-    }).then(subscription => {  
-      if (!subscription) {  
-        console.log('No subscription 😞');  
-        return;  
-      }
-  
-      console.log('Here are the options 🎉');  
-      console.log(subscription.options);  
-    });
-
+    // enable 
     const allowNotificationsBtn = document.getElementById("allowNotifications")
 
     if (Notification.permission != "granted") {
         allowNotificationsBtn.classList.remove("d-none");
     }
-    
+
     allowNotificationsBtn.addEventListener("click", async () => {
       const permission = await window.Notification.requestPermission()
       // value of permission can be 'granted', 'default', 'denied'
@@ -68,6 +62,17 @@ if ("serviceWorker" in navigator) {
       }
       allowNotificationsBtn.classList.add("d-none")
     })
+    
+    navigator.serviceWorker.ready.then(registration => {  
+      return registration.pushManager.getSubscription();  
+    }).then(subscription => {  
+      if (!subscription) {  
+        console.log('No subscription 😞');  
+        return;  
+      }
+      console.log('Here are the options 🎉');  
+      console.log(subscription.options);  
+    });
 
     const registration = await navigator.serviceWorker.register("service-worker.js")
 
@@ -79,7 +84,7 @@ if ("serviceWorker" in navigator) {
     })
 
     const clientIdInput = document.getElementById("clientId")
-    clientIdInput.value = localStorage.getItem("clientId")
+    clientIdInput.value = await getClientId()
 
     const subscribeBtn = document.getElementById("subscribe")
 
@@ -87,11 +92,8 @@ if ("serviceWorker" in navigator) {
     subscribeBtn.disabled = false
 
     subscribeBtn.addEventListener("click", async () => {
-      localStorage.setItem("clientId", clientIdInput.value);
-      serviceWorker.postMessage({
-        type: "subscribe",
-        clientId: clientIdInput.value
-      })
+      await setClientId(clientIdInput.value)
+      serviceWorker.postMessage({type: "subscribe"})
     })
   })
 }
