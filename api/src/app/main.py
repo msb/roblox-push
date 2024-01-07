@@ -20,9 +20,9 @@ app.add_middleware(
 VAPID_PRIVATE_KEY = os.environ['VAPID_PRIVATE_KEY']
 
 # Application Default credentials are automatically created.
-cred = credentials.Certificate('roblox-push-first-408715-507045e2d647.json')
+# cred = credentials.Certificate('roblox-push-first-408715-507045e2d647.json')
 # FIXME don't use SA
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app()
 db = firestore.client()
 
 class SubscriptionKeys(BaseModel):

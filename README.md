@@ -15,7 +15,7 @@ gcloud init
  1726  gcloud config set project roblox-push-first-408715
 gcloud auth configure-docker europe-west2-docker.pkg.dev
 # need to create artefact repository
-VERSION="0.4"
+VERSION="0.6"
 IMAGE_TAG="europe-west2-docker.pkg.dev/roblox-push-first-408715/general/roblox-push:$VERSION"
 docker build . --tag $IMAGE_TAG
 docker push $IMAGE_TAG
