@@ -1,5 +1,19 @@
 # roblox-push
-Web Push Notifications For Roblox Events
+
+The purpose of this project is to allow a game developer to subscribe to
+[Web Push Notifications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)
+for events in a Roblox Experience. It is intended to be deployed to
+[GCP](https://cloud.google.com/gcp) as it makes use of [Firestore](https://firebase.google.com/).
+It consists of the following sub-projects:
+
+- `client` is a web app with a service worker that subscribes the user to push notifications and
+  displays any notifications received.
+- `api` implements an API that allows the `client` to save subscription in a firestore
+
+It could be generalised.
+
+- api
+- client
 
 ```
 python -m pip install pip-tools

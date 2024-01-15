@@ -4,6 +4,7 @@ const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 
 module.exports = (env) => {
+
   return {
     mode: 'development',
     devtool: 'eval-source-map',
@@ -17,7 +18,6 @@ module.exports = (env) => {
       clean: true
     },
     devServer: {
-      static: path.resolve(__dirname, 'dist'),
       port: 8080,
       hot: true
     },
@@ -27,6 +27,11 @@ module.exports = (env) => {
         templateParameters: env,
       })
     ],
+    resolve: {
+      alias: {
+        config: path.join(__dirname, 'config', `${env.config || 'local'}.js`)
+      }
+    },
     module: {
       rules: [
         {

@@ -2,7 +2,7 @@ import isEmpty from 'lodash/isEmpty'
 
 import { getClientId } from './db';
 import { getSubscription, putSubscription, deleteSubscription, postLog } from './api.js';
-import config from "./config.js"
+import config from 'config';
 
 // `urlB64ToUint8Array` is a magic function that will encode the base64 public key
 // to Array buffer which is needed by the subscription option.

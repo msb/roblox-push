@@ -1,4 +1,4 @@
-import config from "./config.js"
+import config from 'config';
 
 const getSubscription = async (clientId) => {
   const url = `${config.apiUrl}/subscriptions/${clientId}`
